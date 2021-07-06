@@ -1,0 +1,23 @@
+#!/bin/bash
+
+read -p "Dysk: " dysk
+wipefs -af "/dev/"$dysk
+parted "/dev/"$dysk mklabel msdos mkpart primary ext2 1MiB 1GiB set 1 boot on mkpart primary linux-swap 1GiB 5GiB mkpart primary ext4 5GiB 100%
+
+mkfs.ext2 -F "/dev/"$dysk"1"
+mkfs.ext4 -F "/dev/"$dysk"3"
+mkswap "/dev/"$dysk"2"
+
+mount "/dev/"$dysk"3" /mnt
+mkdir /mnt/boot
+mount "/dev/"$dysk"1" /mnt/boot
+swapon "/dev/"$dysk"2"
+
+cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+reflector --verbose --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
+pacstrap /mnt/ base linux linux-firmware net-tools networkmanager openssh vi nano sudo
+
+genfstab -U /mnt >> /mnt/etc/fstab
+cp /root/setup2 /mnt/setup2
+echo $dysk > /mnt/nazwa_dysku
+arch-chroot /mnt ./setup2

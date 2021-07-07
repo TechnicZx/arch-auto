@@ -1,0 +1,37 @@
+#!/bin/bash
+
+read -p "Dysk: " dysk
+wipefs -af "/dev/"$dysk
+parted "/dev/"$dysk mklabel msdos mkpart primary ext2 1MiB 1GiB mkpart primary linux-swap 1GiB 5GiB mkpart primary ext4 5GiB 100%
+
+mkfs.ext2 -F "/dev/"$dysk"1"
+mkfs.ext4 -F "/dev/"$dysk"3"
+mkswap "/dev/"$dysk"2"
+
+mount "/dev/"$dysk"3" /mnt
+mkdir /mnt/boot
+mount "/dev/"$dysk"1" /mnt/boot
+swapon "/dev/"$dysk"2"
+
+cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+reflector --verbose --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
+pacstrap /mnt/ base linux linux-firmware net-tools networkmanager openssh vi nano sudo
+
+genfstab -U /mnt >> /mnt/etc/fstab
+arch-chroot /mnt
+echo en_US.UTF-8 UTF-8 >> /etc/locale.gen
+locale-gen
+echo "LANG=en_US.UTF-8">/etc/locale.conf
+ln -sf /usr/share/zoneinfo/PL/Central /etc/localtime
+hwclock --systohc --utc
+
+echo "pc" > /etc/hostname
+passwd --expire root
+chage -l root
+
+pacman -S --noconfirm grub
+grub-install "/dev/"$dysk
+grub-mkconfig -o /boot/grub/grub.cfg
+
+exit
+reboot
